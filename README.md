@@ -12,119 +12,269 @@
   <a href="https://www.bilibili.com/video/BV1sFBXBmEum/">
   <img src='https://img.shields.io/badge/Video-bilibili-pink' alt='bilibili'></a>  
   <a href="https://wiki.ros.org/noetic">
-  <img src='https://img.shields.io/badge/ROS-Noetic-orange' alt='noetic'></a>
+  <img src='https://img.shields.io/badge/ROS1-Noetic-orange' alt='noetic'></a>
+  <a href="https://docs.ros.org/en/humble/">
+  <img src='https://img.shields.io/badge/ROS2-Humble-blue' alt='humble'></a>
 </div>
 
-**Odin1** is a high-performance spatial sensing module that delivers **high-precision 3D mapping**, **robust relocalization**, and rich sensory streams including **RGB images**, **depth**, **IMU**, **odometry**, and **dense point clouds**. Built on this foundation, we have developed various robotic intelligence stacks for ground platforms like the **Unitree Go2**, enabling:
+**Odin Navigation Stack** is a comprehensive autonomous navigation framework supporting multiple robot platforms and ROS versions. Built around high-performance sensing and neural-based planning, the stack enables robust navigation in complex environments.
 
-- **Autonomous navigation with high-efficiency dynamic obstacle avoidance**  
-- **Semantic object detection + natural-language navigation**  
-- **Vision-Language Model (VLM) scene understanding and description**  
+## Supported Platforms
+
+| Platform | ROS Version | Framework | Status |
+|----------|-------------|-----------|--------|
+| **Unitree Go2** | ROS1 Noetic | Odin1 Sensor | ✅ Production |
+| **Dobot Mini Hex V2** | ROS2 Humble | Custom Sensors | ✅ Production |
 
 ## Key Features
 
-- **High-Accuracy SLAM & Persistent Relocalization** (inside Odin1, not open-sourced)  
+- **High-Accuracy SLAM & Persistent Relocalization** (Odin1 sensor)  
   Real-time mapping with long-term relocalization using compact binary maps.
-- **Dynamic Obstacle-Aware Navigation** (fully open-sourced)  
-  Reactive local planners combined with global path planning for safe, smooth motion in complicated environments.
-- **Semantic Navigation** (fully open-sourced)  
-  Detect, localize, and navigate to objects using spoken or typed commands (e.g., _“Go to the left of the chair”_).
+  
+- **NeuPAN Neural Navigation** (fully open-sourced)  
+  End-to-end neural planner combining DUNE (distance predictor) + NRMP (MPC optimizer) for real-time dynamic obstacle avoidance. [Paper](https://ieeexplore.ieee.org/document/10938329/)
+  
+- **Semantic Object Navigation** (fully open-sourced)  
+  YOLOv5-based detection with natural language commands: _"Go to the left of the chair"_
+  
 - **Vision-Language Integration** (fully open-sourced)  
-  Generate contextual scene descriptions in natural language using multimodal AI.
-- **Modular, ROS1-Based Architecture**  
-  Easy to extend, customize, and integrate into your own robotic applications.
+  VLM-powered scene understanding and description for context-aware navigation.
+  
+- **Multi-Platform Architecture**  
+  Modular design supporting both ROS1 (Unitree Go2) and ROS2 (Dobot hexapod).
+
+---
+
+# Table of Contents
+
+- [Quick Start](#quick-start)
+  - [Unitree Go2 (ROS1)](#unitree-go2-ros1)
+  - [Dobot Hexapod (ROS2)](#dobot-hexapod-ros2)
+- [Platform-Specific Guides](#platform-specific-guides)
+  - [Unitree Go2 Setup](#unitree-go2-setup)
+  - [Dobot Hexapod Setup](#dobot-hexapod-setup)
+- [Common Features](#common-features)
+- [Documentation](#documentation)
+- [FAQ](#faq)
+- [Acknowledgements](#acknowledgements)
+
+---
 
 # Quick Start
 
-The code has been tested on:
-- OS: Ubuntu 20.04  
-- ROS: ROS1 Noetic  
-- Robot Platform: Unitree Go2  
-- Hardware: NVIDIA Jetson (Orin Nano) or x86 with GPU
+## Unitree Go2 (ROS1)
 
+**Tested on:** Ubuntu 20.04, ROS1 Noetic, NVIDIA Jetson Orin Nano
 
-## 1. Clone the Repository
+### 1. Clone Repository
 
-``` shell
+```bash
 git clone --depth 1 --recursive https://github.com/ManifoldTechLtd/Odin-Nav-Stack.git
+cd Odin-Nav-Stack
 ```
 
-The Odin1 driver may need to update:
-``` shell
+### 2. Install Dependencies
+
+```bash
+# System packages
+export ROS_DISTRO=noetic
+sudo apt update && sudo apt install -y \
+    ros-${ROS_DISTRO}-desktop \
+    ros-${ROS_DISTRO}-tf2-ros \
+    ros-${ROS_DISTRO}-cv-bridge \
+    ros-${ROS_DISTRO}-pcl-ros \
+    python3-pip python3-venv
+
+# NeuPAN environment
+python3 -m pip install torch numpy scipy cvxpy cvxpylayers loguru
+pip install -e NeuPAN
+```
+
+### 3. Build Workspace
+
+```bash
+cd ros_ws
+source /opt/ros/${ROS_DISTRO}/setup.bash
+catkin_make -DCMAKE_BUILD_TYPE=Release
+source devel/setup.bash
+```
+
+### 4. Launch Navigation
+
+```bash
+# Terminal 1: Odin1 driver
+roslaunch odin_ros_driver odin1_ros1.launch
+
+# Terminal 2: Map planner
+roslaunch map_planner whole.launch
+
+# Terminal 3: NeuPAN planner
+python NeuPAN/neupan/ros/neupan_ros.py
+```
+
+**See full Unitree Go2 guide:** [Unitree Go2 Setup](#unitree-go2-setup)
+
+---
+
+## Dobot Hexapod (ROS2)
+
+**Tested on:** Ubuntu 22.04, ROS2 Humble, Python 3.10+
+
+### 1. Clone Repository
+
+```bash
+git clone --depth 1 https://github.com/tcy1998/Odin-Nav-Stack.git
+cd Odin-Nav-Stack
+```
+
+### 2. Install ROS2 & Dependencies
+
+```bash
+cd ros2_ws
+./setup_ros2.sh  # Automated installation script
+```
+
+Or manually:
+
+```bash
+# Install ROS2 Humble
+sudo apt update && sudo apt install -y \
+    ros-humble-desktop \
+    python3-colcon-common-extensions \
+    ros-humble-tf2-ros \
+    ros-humble-sensor-msgs \
+    ros-humble-geometry-msgs
+
+# Python dependencies
+pip3 install torch numpy scipy cvxpy loguru
+pip3 install -e ../NeuPAN
+```
+
+### 3. Build ROS2 Workspace
+
+```bash
+cd ros2_ws
+source /opt/ros/humble/setup.bash
+export PYTHONPATH=/path/to/Odin-Nav-Stack/NeuPAN:$PYTHONPATH
+colcon build
+source install/setup.bash
+```
+
+### 4. Train NeuPAN Model for Hexapod
+
+```bash
+cd NeuPAN/example/dune_train
+
+# Run training (1-2 hours on CPU, 10-20 min on GPU)
+python3 dune_train_diff.py dune_train_hexapod.yaml
+```
+
+Model will be saved to: `example/dune_train/model/dobot_hex_v2/model_5000.pth`
+
+### 5. Launch Navigation
+
+```bash
+# Terminal 1: Launch hexapod control (from dobot_six_leg repo)
+cd /path/to/dobot_six_leg
+# ... launch hexapod nodes ...
+
+# Terminal 2: Launch NeuPAN navigation
+source ros2_ws/install/setup.bash
+ros2 run neupan_ros2 neupan_node
+
+# Terminal 3: Send navigation goal
+ros2 topic pub --once /goal geometry_msgs/PoseStamped '{
+  header: {frame_id: "map"},
+  pose: {position: {x: 5.0, y: 3.0, z: 0.0}, orientation: {w: 1.0}}
+}'
+```
+
+**See full hexapod guide:** [Dobot Hexapod Setup](#dobot-hexapod-setup)
+
+---
+
+# Platform-Specific Guides
+
+## Unitree Go2 Setup
+
+### System Requirements
+
+- **OS:** Ubuntu 20.04  
+- **ROS:** ROS1 Noetic  
+- **Hardware:** NVIDIA Jetson Orin Nano (or x86 with GPU)  
+- **Robot:** Unitree Go2  
+- **Sensor:** Odin1 spatial sensing module
+
+### 1. Clone and Update Odin Driver
+
+```bash
+git clone --depth 1 --recursive https://github.com/ManifoldTechLtd/Odin-Nav-Stack.git
 cd Odin-Nav-Stack/ros_ws/src/odin_ros_driver
 git fetch origin
 git checkout main
 git pull origin main
 ```
 
-### Odin1 ROS driver modification
+### 2. Modify Odin1 ROS Driver
 
-We need to modify certain features of the odin1 ROS driver to adapt it for navigation, which may cause conflicts with your other programs.
+Edit `ros_ws/src/odin_ros_driver/include/host_sdk_sample.h`:
 
-Please edit the `ros_ws/src/odin_ros_driver/include/host_sdk_sample.h`. Please note the location to modify. You should modify the ROS1 section, not the ROS2 section.
+#### a) Modify `ns_to_ros_time` function:
 
-1. Modifiy the `ns_to_ros_time` function:
-    ``` cpp
-    inline ros::Time ns_to_ros_time(uint64_t timestamp_ns) {
-        ros::Time t;
-        #ifdef ROS2
-            t.sec = static_cast<int32_t>(timestamp_ns / 1000000000);
-            t.nanosec = static_cast<uint32_t>(timestamp_ns % 1000000000);
-        #else
-            // t.sec = static_cast<uint32_t>(timestamp_ns / 1000000000);
-            // t.nsec = static_cast<uint32_t>(timestamp_ns % 1000000000);
-            return ros::Time::now();
-        #endif
-        return t;
-    }
-    ```
+```cpp
+inline ros::Time ns_to_ros_time(uint64_t timestamp_ns) {
+    ros::Time t;
+    #ifdef ROS2
+        t.sec = static_cast<int32_t>(timestamp_ns / 1000000000);
+        t.nanosec = static_cast<uint32_t>(timestamp_ns % 1000000000);
+    #else
+        // t.sec = static_cast<uint32_t>(timestamp_ns / 1000000000);
+        // t.nsec = static_cast<uint32_t>(timestamp_ns % 1000000000);
+        return ros::Time::now();
+    #endif
+    return t;
+}
+```
 
-2. Comment out the low-frequency TF transform in function `publishOdometry`:
-    ``` cpp
-    switch(odom_type) {
-        case OdometryType::STANDARD:
-            {
-            // geometry_msgs::TransformStamped transformStamped;
-            // transformStamped.header.stamp = msg.header.stamp;
-            // transformStamped.header.frame_id = "odom";
-            // transformStamped.child_frame_id = "odin1_base_link";
-            // transformStamped.transform.translation.x = msg.pose.pose.position.x;
-            // transformStamped.transform.translation.y = msg.pose.pose.position.y;
-            // transformStamped.transform.translation.z = msg.pose.pose.position.z;
-            // transformStamped.transform.rotation.x = msg.pose.pose.orientation.x;
-            // transformStamped.transform.rotation.y = msg.pose.pose.orientation.y;
-            // transformStamped.transform.rotation.z = msg.pose.pose.orientation.z;
-            // transformStamped.transform.rotation.w = msg.pose.pose.orientation.w;
-            // tf_broadcaster->sendTransform(transformStamped);
-            odom_publisher_.publish(msg);
+#### b) Comment out low-frequency TF in `publishOdometry`:
+
+```cpp
+switch(odom_type) {
+    case OdometryType::STANDARD:
+        {
+        // geometry_msgs::TransformStamped transformStamped;
+        // transformStamped.header.stamp = msg.header.stamp;
+        // ... (comment out entire TF transform block)
+        odom_publisher_.publish(msg);
     ...
-    ```
+```
 
-3. Add high-frequency TF transform publication in function `publishOdometry`:
-    ``` cpp
-    case OdometryType::HIGHFREQ:{
-        geometry_msgs::TransformStamped transformStamped;
-        transformStamped.header.stamp = msg.header.stamp;
-        transformStamped.header.frame_id = "odom";
-        transformStamped.child_frame_id = "odin1_base_link";
-        transformStamped.transform.translation.x = msg.pose.pose.position.x;
-        transformStamped.transform.translation.y = msg.pose.pose.position.y;
-        transformStamped.transform.translation.z = msg.pose.pose.position.z;
-        transformStamped.transform.rotation.x = msg.pose.pose.orientation.x;
-        transformStamped.transform.rotation.y = msg.pose.pose.orientation.y;
-        transformStamped.transform.rotation.z = msg.pose.pose.orientation.z;
-        transformStamped.transform.rotation.w = msg.pose.pose.orientation.w;
-        tf_broadcaster->sendTransform(transformStamped);
-        odom_highfreq_publisher_.publish(msg);
-        break;
-    }
-    ```
+#### c) Add high-frequency TF transform:
 
-## 2. Install System Dependencies
-``` shell
+```cpp
+case OdometryType::HIGHFREQ:{
+    geometry_msgs::TransformStamped transformStamped;
+    transformStamped.header.stamp = msg.header.stamp;
+    transformStamped.header.frame_id = "odom";
+    transformStamped.child_frame_id = "odin1_base_link";
+    transformStamped.transform.translation.x = msg.pose.pose.position.x;
+    transformStamped.transform.translation.y = msg.pose.pose.position.y;
+    transformStamped.transform.translation.z = msg.pose.pose.position.z;
+    transformStamped.transform.rotation.x = msg.pose.pose.orientation.x;
+    transformStamped.transform.rotation.y = msg.pose.pose.orientation.y;
+    transformStamped.transform.rotation.z = msg.pose.pose.orientation.z;
+    transformStamped.transform.rotation.w = msg.pose.pose.orientation.w;
+    tf_broadcaster->sendTransform(transformStamped);
+    odom_highfreq_publisher_.publish(msg);
+    break;
+}
+```
+
+### 3. Install System Dependencies
+
+```bash
 export ROS_DISTRO=noetic
-sudo apt update
-sudo apt install -y \
+sudo apt update && sudo apt install -y \
     ros-${ROS_DISTRO}-tf2-ros \
     ros-${ROS_DISTRO}-tf2-geometry-msgs \
     ros-${ROS_DISTRO}-cv-bridge \
@@ -134,193 +284,133 @@ sudo apt install -y \
     ros-${ROS_DISTRO}-dwa-local-planner
 ```
 
-## 3. Install Unitree Go2 SDK
-Follow the official guide:
-[Unitree Go2 SDK](https://support.unitree.com/home/zh/developer/Obtain%20SDK?spm=a2ty_o01.29997173.0.0.737bc921PvkEw8)
+### 4. Install Unitree Go2 SDK
 
-## 4. Set Up Conda & Mamba 
-Follow the installation in [miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install#basic-install-instructions).
-``` shell
+Follow official guide: [Unitree Go2 SDK](https://support.unitree.com/home/zh/developer/Obtain%20SDK)
+
+### 5. Setup Conda & NeuPAN Environment
+
+```bash
+# Install miniconda
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+
+# Install mamba
 conda install -n base -c conda-forge mamba
-# Re-login to your shell after installation
-```
 
-## 5. Create the NeuPAN Environment 
-``` shell
+# Create NeuPAN environment
 export ROS_DISTRO=noetic
 mamba create -n neupan -y
 mamba activate neupan
 conda config --env --add channels conda-forge
 conda config --env --remove channels defaults
 conda config --env --add channels robostack-${ROS_DISTRO}
-mamba install -n neupan ros-${ROS_DISTRO}-desktop colcon-common-extensions catkin_tools rosdep ros-dev-tools -y
+mamba install -n neupan ros-${ROS_DISTRO}-desktop colcon-common-extensions -y
 mamba run -n neupan pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
 pip install -e NeuPAN
 ```
 
-**For different Jetson users**: Replace the PyTorch install with a compatible .whl from [NVIDIA's Jeston PyTorch Page](https://forums.developer.nvidia.com/t/pytorch-for-jetson/72048).
+**For Jetson:** Replace PyTorch install with compatible .whl from [NVIDIA Jetson PyTorch](https://forums.developer.nvidia.com/t/pytorch-for-jetson/72048).
 
-## 6. Build the ROS Workspace 
+### 6. Build ROS Workspace
 
-There are two methods for compiling workspaces: one involves using ROS within a conda environment, and the other involves ROS installed system-wide. If you need to compile using the system-installed ROS, ensure all conda environments are deactivated by running `mamba deactivate`.
-
-### System-installed ROS build
-``` shell
+```bash
 cd ros_ws
 source /opt/ros/${ROS_DISTRO}/setup.bash
 catkin_make -DCMAKE_BUILD_TYPE=Release
+source devel/setup.bash
 ```
 
-### Conda ROS build
+### 7. Set USB Rules for Odin1
 
-Some packages need to be installed before compile
-``` shell
-mamba activate neupan
-mamba install -c conda-forge -c robostack-noetic ros-noetic-pcl-ros ros-noetic-compressed-image-transport ros-noetic-compressed-depth-image-transport ros-noetic-image-transport
-```
-
-Compile:
-``` shell
-mamba activate neupan
-cd ros_ws
-catkin_make -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DPCL_VISUALIZATION=OFF -DQT_HOST_PATH=$CONDA_PREFIX
-```
-
-## 7. Set USB Rules for Odin1
-
-``` shell
-sudo vim /etc/udev/rules.d/99-odin-usb.rules
-```
-
-Add the following content to `/etc/udev/rules.d/99-odin-usb.rules`:
-
-``` shell
+```bash
+sudo bash -c 'cat > /etc/udev/rules.d/99-odin-usb.rules << EOF
 SUBSYSTEM=="usb", ATTR{idVendor}=="2207", ATTR{idProduct}=="0019", MODE="0666", GROUP="plugdev"
-```
+EOF'
 
-Reload rules and reinsert devices
-``` shell
 sudo udevadm control --reload
 sudo udevadm trigger
 ```
 
-# Usage
+### 8. Mapping with Odin1
 
-- Mapping & Relocalization
-- Navigation
-- YOLO object detection
-- VLM scene explanation
+#### Configure Mapping Mode
 
-## Mapping and Relocalization with Odin1
+Edit `ros_ws/src/odin_ros_driver/config/control_command.yaml`:
 
-Building maps and performing relocalization with Odin1
-
-### 1. Configure Mapping Mode
-Edit `ros_ws/src/odin_ros_driver/config/control_command.yaml`, set `custom_map_mode: 1` to enable mapping.
-
-### 2. Launch Mapping 
-
-Terminal 1 – Start Odin driver:
-``` shell
-source ros_ws/devel/setup.bash
-roslaunch odin_ros_driver odin1_ros1.launch
+```yaml
+custom_map_mode: 1  # Enable mapping
 ```
 
-Terminal 2 – Run mapping script:
-``` shell
+#### Launch Mapping
+
+```bash
+# Terminal 1: Odin driver
+source ros_ws/devel/setup.bash
+roslaunch odin_ros_driver odin1_ros1.launch
+
+# Terminal 2: Record map
 bash scripts/map_recording.sh awesome_map
 ```
 
-The pcd map will be saved to `ros_ws/src/pcd2pgm/maps/` and the grid map will be saved to `ros_ws/src/map_planner/maps/`
+Maps saved to:
+- PCD map: `ros_ws/src/pcd2pgm/maps/`
+- Grid map: `ros_ws/src/map_planner/maps/`
 
-After the map is constructed, you can view and modify the grid map using GIMP:
-``` shell
-sudo apt update && sudo apt install gimp
+Edit grid map with GIMP:
+
+```bash
+sudo apt install gimp
+gimp ros_ws/src/map_planner/maps/awesome_map.pgm
 ```
 
-### 3. Relocalization & Navigation
-Enable relocalization by editing `control_command.yaml`: 
-``` shell
+### 9. Relocalization & Navigation
+
+#### Enable Relocalization
+
+Edit `control_command.yaml`:
+
+```yaml
 custom_map_mode: 2
 relocalization_map_abs_path: "/abs/path/to/your/map"
 ```
 
-Launch: 
-``` shell
+#### Launch Navigation
+
+```bash
+# Terminal 1: Odin driver
 roslaunch odin_ros_driver odin1_ros1.launch
-```
 
-Verify TF tree: visualize TF tree in rqt: map → odom → odin1_base_link
-
-Relocalization may require manually initiating motion.
-
-## Navigation Modes
-### Standard ROS Navigation (Not recommended, TODO)
-Use Nav1 and move-base. Please [install](https://wiki.ros.org/navigation) before running.
-``` shell
-roslaunch navigation_planner navigation_planner.launch
-```
-
-### Custom Planner (Not recommended, TODO)
-Tune `global_planner.yaml` and `local_planner.yaml` in `ros_ws/src/model_planner`, then:
-``` shell
-roslaunch model_planner model_planner.launch
-```
-You can modify the code and replace it with your own custom algorithm.
-
-### End-to-End Neural Planner (Recommended)
-This is our recommended high-performance local planner; please refer to the paper: [NeuPAN](https://ieeexplore.ieee.org/document/10938329/).
-
-#### Model Training
-
-If you are not using Unitree Go2, please train the dune model. Modify the training configuration file `NeuPAN/example/dune_train/dune_train_*.py` based on the chassis type, then run:
-``` shell
-cd NeuPAN/example/dune_train
-python dune_train_*.py
-```
-
-Replace `*` with your chassis type. For more training detail, please refer to [here](https://github.com/hanruihua/NeuPAN?tab=readme-ov-file#dune-model-training-for-your-own-robot-with-a-specific-convex-geometry).
-
-#### Launch
-``` shell
-# Terminal 1
+# Terminal 2: Map planner (A* global planner)
 roslaunch map_planner whole.launch
 
-# Terminal 2
+# Terminal 3: NeuPAN local planner
 mamba activate neupan
 python NeuPAN/neupan/ros/neupan_ros.py
 ```
 
-Use RViz to publish 2D Nav Goals. Verify relocalization by visualize TF tree in rqt before publishing goal.
+#### Verify TF Tree
 
-## Object detection
+Use RViz or rqt to verify: `map → odom → odin1_base_link`
 
-Enables navigation to specific objects. Requires depth maps and undistorted images from Odin1.
+Initial motion may be required to trigger relocalization.
 
-### 1. Install YOLOv5 in Virtual Environment:
+### 10. YOLOv5 Object Detection
 
-First, install YOLOv5:
-``` shell
+#### Install YOLOv5
+
+```bash
 python3 -m venv ros_ws/venvs/ros_yolo_py38
 source ros_ws/venvs/ros_yolo_py38/bin/activate
 pip install --upgrade pip "numpy<2.0.0"
 cd ros_ws/src && git clone https://github.com/ultralytics/yolov5.git
 pip install -r yolov5/requirements.txt
-```
-Please note that we encountered a conflict between the automatic installation of torch and torchvision on a certain Jetson Orin Nano. If you encounter this issue, please refer to the troubleshooting section.
-
-Then, install other dependencies:
-``` shell
 pip install opencv-python pillow pyyaml requests tqdm scipy matplotlib seaborn pandas empy==3.3.4 catkin_pkg ros_pkg vosk sounddevice
 ```
 
-Verify PyTorch and CUDA:
-``` shell
-python -c "import torch, torchvision; print('PyTorch:', torch.__version__); print('torchvision:', torchvision.__version__); print('CUDA available:', torch.cuda.is_available())"
-```
+#### Download Resources
 
-Download resources:
-``` shell
+```bash
 mkdir -p ros_ws/src/yolo_ros/scripts/voicemodel
 cd ros_ws/src/yolo_ros/scripts/voicemodel
 wget https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip
@@ -329,174 +419,710 @@ wget https://github.com/ultralytics/yolov5/releases/download/v7.0/yolov5s.pt -O 
 chmod +x ../yolo_detector.py
 ```
 
+#### Calibrate Camera
 
-### 2. Calibrate Camera 
-Copy `Tcl_0` and `cam_0` from `odin_ros_driver/config/calib.yaml` into `yolo_detector.py`. 
+Copy `Tcl_0` and `cam_0` from `odin_ros_driver/config/calib.yaml` into `yolo_detector.py`.
 
-### 3. Launch 
-Terminal 1: 
-``` shell
+#### Launch
+
+```bash
+# Terminal 1: Odin driver
 roslaunch odin_ros_driver odin1_ros1.launch
-```
 
-Terminal 2: 
-``` shell
+# Terminal 2: YOLO detector
 ./run_yolo_detector.sh
 ```
 
-In Terminal 2, you can enter the following commands to control it:
-- list: Query recognized objects.
-- object name: Display the 3D position in RViz.
-- Move to the [Nth] [object] [direction]: Publish a navigation goal. (Supprot Chinese input)
-- mode: Toggle between text and voice input.
+**Commands in Terminal 2:**
+- `list` - Query recognized objects
+- `object name` - Display 3D position in RViz
+- `Move to the [Nth] [object] [direction]` - Navigate (supports Chinese)
+- `mode` - Toggle text/voice input
 
+### 11. Vision-Language Model (VLM)
 
-## Vision-Language Model (VLM)
-Install LLaMA.cpp:
-``` shell
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```bash
+# Install llama.cpp
 brew install llama.cpp
-```
 
-Download models (e.g., SmolVLM):
-``` shell
+# Download SmolVLM model
 wget https://huggingface.co/ggml-org/SmolVLM-500M-Instruct-GGUF/resolve/main/SmolVLM-500M-Instruct-Q8_0.gguf
 wget https://huggingface.co/ggml-org/SmolVLM-500M-Instruct-GGUF/resolve/main/mmproj-SmolVLM-500M-Instruct-Q8_0.gguf
-```
 
-### Launch
-
-Terminal 1: 
-``` shell
+# Terminal 1: LLaMA server
 llama-server -m SmolVLM-500M-Instruct-Q8_0.gguf --mmproj mmproj-SmolVLM-500M-Instruct-Q8_0.gguf
-```
 
-Terminal 2:
-``` shell
+# Terminal 2: Odin driver
 roslaunch odin_ros_driver odin1_ros1.launch
-```
 
-Terminal 3:
-``` shell
+# Terminal 3: VLM terminal
 roslaunch odin_vlm_terminal odin_vlm_terminal.launch
 ```
 
-## VLN
+### 12. Vision-Language Navigation (VLN)
 
-### Launch
+Full pipeline: VLM → String Command → Map Planner → NeuPAN → Robot
 
-Terminal 1: 
-``` shell
+```bash
+# Terminal 1: Map planner
 roslaunch map_planner whole.launch
-```
 
-Terminal 2:
-``` shell
+# Terminal 2: Odin driver
 roslaunch odin_ros_driver odin1_ros1.launch
-```
 
-Terminal 3:
-``` shell
+# Terminal 3: NeuPAN
 mamba activate neupan
 python NeuPAN/neupan/ros/neupan_ros.py
-```
 
-Terminal 4:
-``` shell
+# Terminal 4: String command controller
 mamba activate neupan
 python scripts/str_cmd_control.py
-```
 
-Terminal 5:
-``` shell
+# Terminal 5: VLN interface
 mamba activate neupan
 python scripts/VLN.py
 ```
 
+---
+
+## Dobot Hexapod Setup
+
+### System Requirements
+
+- **OS:** Ubuntu 22.04  
+- **ROS:** ROS2 Humble  
+- **Hardware:** x86 with CPU/GPU (or Jetson)  
+- **Robot:** Dobot Mini Hex V2 (6-legged hexapod)  
+- **Sensors:** Livox lidar, RealSense camera
+
+### Robot Specifications
+
+| Parameter | Value |
+|-----------|-------|
+| **Footprint** | 0.5m × 0.1275m |
+| **Max Linear Speed** | 0.2 m/s |
+| **Max Angular Speed** | 0.28 rad/s |
+| **Legs** | 6 (18 DOF total) |
+| **Control** | ROS2 `/vel_cmd` (Twist) |
+| **Lidar** | Livox (PointCloud2) |
+
+### 1. Clone Repositories
+
+```bash
+# Main navigation stack
+git clone --depth 1 https://github.com/tcy1998/Odin-Nav-Stack-sixlegs.git
+cd Odin-Nav-Stack-sixlegs
+
+# Hexapod MuJoCo models (separate repo)
+git clone https://github.com/tcy1998/dobot_six_leg.git
+```
+
+### 2. Install ROS2 & Dependencies
+
+#### Automated Installation
+
+```bash
+cd ros2_ws
+./setup_ros2.sh
+```
+
+#### Manual Installation
+
+```bash
+# Install ROS2 Humble
+sudo apt update && sudo apt install -y \
+    software-properties-common \
+    curl gnupg lsb-release
+
+sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+    -o /usr/share/keyrings/ros-archive-keyring.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" \
+    | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+
+sudo apt update && sudo apt install -y \
+    ros-humble-desktop \
+    python3-colcon-common-extensions \
+    ros-humble-geometry-msgs \
+    ros-humble-sensor-msgs \
+    ros-humble-nav-msgs \
+    ros-humble-tf2-ros \
+    ros-humble-tf2-geometry-msgs
+
+# Python dependencies
+pip3 install torch numpy scipy cvxpy cvxpylayers loguru
+```
+
+### 3. Install NeuPAN for Hexapod
+
+```bash
+# Clone hexapod-specific NeuPAN branch
+cd Odin-Nav-Stack-sixlegs
+git clone -b hexapod-support https://github.com/tcy1998/NeuPAN_sixlegs.git NeuPAN
+
+# Install dependencies
+cd NeuPAN
+pip3 install --user -e .
+```
+
+**Note:** Uses Python 3.8+ compatible version with fixed type hints.
+
+### 4. Train NeuPAN Model for Hexapod
+
+NeuPAN requires robot-specific training due to different footprint and kinematics.
+
+#### Quick Training (Automated)
+
+```bash
+cd NeuPAN
+./setup_hexapod_training.sh    # Install dependencies
+./start_hexapod_training.sh    # Start training
+./monitor_training.sh          # Monitor progress
+```
+
+#### Manual Training
+
+```bash
+cd NeuPAN/example/dune_train
+
+# CPU training (1-2 hours)
+python3 dune_train_diff.py dune_train_hexapod.yaml
+
+# GPU training (10-20 min) - change device in neupan/configuration/__init__.py
+# device = torch.device("cuda")  # Line 25
+```
+
+**Training parameters:**
+- Samples: 100,000 synthetic trajectories
+- Epochs: 5000
+- Map size: 50m × 50m
+- Obstacles: Random convex polygons
+
+**Model location:** `NeuPAN/example/dune_train/model/dobot_hex_v2/model_5000.pth`
+
+### 5. Build ROS2 Workspace
+
+```bash
+cd ros2_ws
+source /opt/ros/humble/setup.bash
+export PYTHONPATH=/path/to/Odin-Nav-Stack-sixlegs/NeuPAN:$PYTHONPATH
+colcon build
+source install/setup.bash
+```
+
+**Add to `~/.bashrc`:**
+
+```bash
+echo 'source /opt/ros/humble/setup.bash' >> ~/.bashrc
+echo 'export PYTHONPATH=/path/to/Odin-Nav-Stack-sixlegs/NeuPAN:$PYTHONPATH' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### 6. Launch Hexapod Navigation
+
+#### Option A: Full ROS2 Migration (Recommended)
+
+```bash
+# Terminal 1: Launch hexapod control
+cd dobot_six_leg
+# ... launch hexapod ROS2 nodes ...
+# Publishes: /robot_state, /livox/lidar
+# Subscribes: /vel_cmd
+
+# Terminal 2: Launch NeuPAN
+cd Odin-Nav-Stack-sixlegs/ros2_ws
+source install/setup.bash
+ros2 run neupan_ros2 neupan_node
+
+# Terminal 3: Send goal
+ros2 topic pub --once /goal geometry_msgs/PoseStamped '{
+  header: {frame_id: "map"},
+  pose: {
+    position: {x: 5.0, y: 3.0, z: 0.0},
+    orientation: {w: 1.0, x: 0.0, y: 0.0, z: 0.0}
+  }
+}'
+```
+
+#### Option B: ROS1↔ROS2 Bridge (Temporary)
+
+For quick testing of ROS1 NeuPAN with ROS2 hexapod:
+
+```bash
+# Terminal 1: ROS1 core
+source /opt/ros/noetic/setup.bash
+roscore
+
+# Terminal 2: Bridge
+source /opt/ros/noetic/setup.bash
+source /opt/ros/humble/setup.bash
+ros2 run ros1_bridge dynamic_bridge
+
+# Terminal 3: Hexapod (ROS2)
+cd dobot_six_leg
+# ... launch hexapod ...
+
+# Terminal 4: NeuPAN (ROS1)
+cd Odin-Nav-Stack-sixlegs
+source ros_ws/devel/setup.bash
+python NeuPAN/neupan/ros/neupan_ros.py
+```
+
+### 7. Verify System
+
+#### Check TF Tree
+
+```bash
+ros2 run tf2_tools view_frames
+evince frames.pdf  # Should show: map → link_trunk → livox_frame
+```
+
+#### Monitor Topics
+
+```bash
+# List topics
+ros2 topic list
+
+# Check scan data (LaserScan from PointCloud2)
+ros2 topic echo /scan
+
+# Monitor velocity commands
+ros2 topic echo /vel_cmd
+
+# Check robot state
+ros2 topic echo /robot_state
+```
+
+#### Visualize in RViz2
+
+```bash
+rviz2
+
+# Add displays:
+# - TF
+# - LaserScan (/scan)
+# - Path (/neupan_plan)
+# - Path (/neupan_initial_path)
+# - Marker (/robot_marker)
+# Fixed Frame: map
+```
+
+### 8. Parameter Tuning
+
+Edit `ros2_ws/src/neupan_ros2/config/planner.yaml`:
+
+```yaml
+ref_speed: 0.2           # Reference tracking speed (m/s)
+max_speed: [0.2, 0.28]   # [linear, angular] max speeds
+collision_threshold: 0.3 # Stop when obstacle < 0.3m
+robot:
+  length: 0.5            # Hexapod length (m)
+  width: 0.1275          # Hexapod width (m)
+  min_radius: 0.15       # Minimum turning radius (m)
+```
+
+**Runtime tuning:**
+
+```bash
+# Increase smoothness (lower q_s = smoother but slower)
+ros2 topic pub /neupan/q_s std_msgs/Float32 "data: 2.0"
+
+# Increase urgency (higher p_u = faster but less smooth)
+ros2 topic pub /neupan/p_u std_msgs/Float32 "data: 1.5"
+```
+
+### 9. Troubleshooting
+
+#### Problem: "NeuPAN module not found"
+
+```bash
+export PYTHONPATH=/path/to/NeuPAN:$PYTHONPATH
+# Or add to ~/.bashrc
+```
+
+#### Problem: "config.yaml not found"
+
+```bash
+# Copy from NeuPAN
+cd ros2_ws/src/neupan_ros2
+mkdir -p config
+cp /path/to/NeuPAN/neupan/ros/configs/*.yaml config/
+```
+
+#### Problem: "DUNE checkpoint not found"
+
+```bash
+# Verify training completed
+ls -lh NeuPAN/example/dune_train/model/dobot_hex_v2/model_5000.pth
+
+# If missing, retrain
+cd NeuPAN/example/dune_train
+./start_hexapod_training.sh
+```
+
+#### Problem: "Could not transform map to link_trunk"
+
+```bash
+# Check TF tree
+ros2 run tf2_tools view_frames
+
+# Check specific transform
+ros2 run tf2_ros tf2_echo map link_trunk
+
+# Ensure localization is running
+```
+
+#### Problem: "No /scan data"
+
+```bash
+# Check if Livox lidar is publishing
+ros2 topic list | grep livox
+ros2 topic hz /livox/lidar
+
+# Implement PointCloud2 → LaserScan conversion
+# See: ros2_ws/src/neupan_ros2/README.md
+```
+
+### 10. Migration Guides
+
+Comprehensive documentation:
+
+- **HEXAPOD_MIGRATION_GUIDE.md** - Full migration from Unitree Go2 to hexapod
+- **HEXAPOD_TO_NEUPAN_INTEGRATION.md** - Data integration and bridge implementation
+- **ros2_ws/README.md** - ROS2 workspace overview
+- **ros2_ws/MIGRATION_STATUS.md** - ROS2 migration progress tracker
+- **ros2_ws/QUICK_REFERENCE.sh** - Command reference
+
+---
+
+# Common Features
+
+## NeuPAN Neural Navigation
+
+**NeuPAN** (Neural Parallel Autonomy Navigation) combines:
+
+- **DUNE:** Neural distance predictor (offline trained)
+- **NRMP:** MPC-based trajectory optimizer (online)
+
+### Why NeuPAN?
+
+- **Fast:** 20-50 Hz control loop (typical: 10-20ms per iteration)
+- **Safe:** Predicts collision distances, maintains safety margins
+- **Smooth:** MPC optimization for comfortable trajectories
+- **Robot-Specific:** Trained for exact robot geometry
+
+### Architecture
+
+```
+Obstacle Points (LaserScan)  ──┐
+Robot State (Odometry)       ──┼──> DUNE ──> Distance μ ──> NRMP ──> Velocity Cmd
+Goal/Waypoints               ──┘           (Neural Net)   (MPC)     (Twist)
+```
+
+### Training Custom Robot
+
+1. **Define robot geometry** in YAML config
+2. **Generate synthetic data** (100k samples)
+3. **Train DUNE network** (5000 epochs)
+4. **Deploy model** in planner config
+
+See: `NeuPAN/example/dune_train/dune_train_hexapod.yaml`
+
+---
+
+## Object Detection & Semantic Navigation
+
+**YOLOv5** for real-time object detection + natural language navigation.
+
+### Features
+
+- Real-time detection (30+ FPS)
+- 80 COCO classes
+- 3D localization (depth + detection)
+- Voice/text commands
+
+### Usage
+
+**ROS1 (Unitree Go2):**
+
+```bash
+./run_yolo_detector.sh
+# Type: "Move to the left of the chair"
+```
+
+**ROS2 (Hexapod):**
+
+```bash
+# TODO: Port yolo_ros to ROS2
+# See: ros2_ws/src/yolo_ros2/
+```
+
+---
+
+## Vision-Language Model Integration
+
+**VLM** for scene understanding and description.
+
+### Supported Models
+
+- SmolVLM (500M, recommended for edge devices)
+- Qwen3-VL (online API, better accuracy)
+
+### Use Cases
+
+- Scene description: "Describe what you see"
+- Object queries: "Is there a chair in the room?"
+- Navigation context: "What's to the left of the door?"
+
+---
+
+# Documentation
+
+## Repository Structure
+
+```
+Odin-Nav-Stack/
+├── README.md                          # This file
+├── LICENSE
+├── NeuPAN/                            # Neural planner library
+│   ├── neupan/
+│   │   ├── neupan.py                  # Main planner
+│   │   ├── blocks/dune.py             # Neural network
+│   │   └── ros/
+│   │       ├── neupan_ros.py          # ROS1 node
+│   │       └── configs/
+│   │           ├── config.yaml        # Node config
+│   │           └── planner.yaml       # Planner params
+│   └── example/dune_train/
+│       ├── dune_train_diff.py         # Training script
+│       ├── dune_train_hexapod.yaml    # Hexapod config
+│       └── model/dobot_hex_v2/        # Trained models
+├── ros_ws/                            # ROS1 workspace (Unitree Go2)
+│   └── src/
+│       ├── odin_ros_driver/           # Odin1 driver
+│       ├── map_planner/               # A* global planner
+│       ├── yolo_ros/                  # YOLO detection
+│       ├── navigation_planner/        # Nav1 interface
+│       └── model_planner/             # Custom planner
+├── ros2_ws/                           # ROS2 workspace (Hexapod)
+│   ├── README.md                      # Workspace guide
+│   ├── MIGRATION_STATUS.md            # Progress tracker
+│   ├── QUICK_REFERENCE.sh             # Commands
+│   ├── setup_ros2.sh                  # Installation script
+│   └── src/
+│       ├── neupan_ros2/               # NeuPAN ROS2 (50% complete)
+│       ├── yolo_ros2/                 # YOLO ROS2 (TODO)
+│       ├── hexapod_bridge/            # ROS1↔ROS2 bridge (TODO)
+│       └── navigation_planner/        # A* ROS2 (TODO)
+├── dobot_six_leg/                     # Hexapod MuJoCo models (external)
+├── yolov5/                            # YOLOv5 library
+├── scripts/
+│   ├── VLN.py                         # VLN interface
+│   ├── str_cmd_control.py             # Command parser
+│   └── run_yolo_detector.sh           # YOLO launcher
+├── HEXAPOD_MIGRATION_GUIDE.md         # Hexapod migration guide
+├── HEXAPOD_TO_NEUPAN_INTEGRATION.md   # Integration guide
+└── dobot_six_leg/ROBOT_SPECS.md       # Hexapod specifications
+```
+
+## Key Documentation Files
+
+| File | Description |
+|------|-------------|
+| **README.md** | This file - main documentation |
+| **HEXAPOD_MIGRATION_GUIDE.md** | Unitree Go2 → Dobot hexapod migration |
+| **HEXAPOD_TO_NEUPAN_INTEGRATION.md** | Data integration, bridge code |
+| **ros2_ws/README.md** | ROS2 workspace guide |
+| **ros2_ws/MIGRATION_STATUS.md** | ROS2 migration progress (30% complete) |
+| **ros2_ws/QUICK_REFERENCE.sh** | ROS2 command cheat sheet |
+| **dobot_six_leg/ROBOT_SPECS.md** | Hexapod specifications |
+
+---
+
 # FAQ
 
-## How to check the status of relocalization
+## General
 
-Open RViz, set `Global Options`-> `Fixed Frame` to map. In the bottom-left corner, select `Add` -> `By display type` -> `rviz` -> double-click `TF`. The appearance of the odom-map's coordinate axes and connections indicates successful relocalization.
+### Q: Which platform should I use?
 
-## Start or goal is occupied after publishing the goal
+- **For Unitree Go2 with Odin1 sensor:** Use ROS1 workspace (`ros_ws/`)
+- **For Dobot hexapod or custom robots:** Use ROS2 workspace (`ros2_ws/`)
+- **For other robots:** Train NeuPAN for your robot geometry
 
-If the start or end point is occupied, you can check the inflation map `/inflated_map` in RViz. The start and end points must lie outside the inflation area. Additionally, you can modify the inflation radius in `ros_ws/src/map_planner/launch/whole.launch:inflation_radius`.
+### Q: Do I need to retrain NeuPAN?
 
-## Unable to stop near the target point
+**Yes, if:**
+- Robot footprint different from Unitree Go2 (0.5m × 0.36m) or Dobot hexapod (0.5m × 0.1275m)
+- Different velocity limits
+- Different kinematics (e.g., car-like vs differential drive)
 
-This is a NeuPAN issue; there may be errors in reaching the target point. You can try increasing the `goal_tolerance` parameter in `ros_ws/src/map_planner/launch/whole.launch`.
+**No, if:**
+- Using exact same robot platform
+- Can use pre-trained models
 
-If you have any other questions, you can post them on GitHub Issues.
+### Q: Can I use NeuPAN without Odin1?
 
-# Troubleshooting
+**Yes!** NeuPAN works with any 2D laser scan (`/scan` topic). You can:
+- Use Livox lidar + PointCloud2→LaserScan conversion
+- Use standard 2D lidar (e.g., RPLidar, SICK)
+- Provide `/scan` topic from any source
 
-## torch conflict with torchvision
-Error:`torch.cuda.is_available() returns False`
+### Q: What's the difference between DUNE and NRMP?
 
-Cause: torchvision overwrote the CUDA-enabled PyTorch installation.
+- **DUNE:** Neural network, predicts distance constraints (μ parameters)
+- **NRMP:** MPC optimizer, generates velocity commands satisfying constraints
 
-Fix:
-``` shell
-pip uninstall torch torchvision torchaudio
-# Reinstall torch from .whl
-pip install torch-*.whl
-pip install --no-cache-dir "git+https://github.com/pytorch/vision.git@v0.16.0"
+Both run together in NeuPAN planner.
+
+## ROS1 (Unitree Go2)
+
+### Q: How to check relocalization status?
+
+Open RViz:
+1. Set `Fixed Frame` → `map`
+2. Add → `TF`
+3. Verify: `map → odom → odin1_base_link` exists
+
+### Q: Goal is occupied / start point blocked
+
+**Solution:**
+- Check inflation map: `ros2 topic echo /inflated_map`
+- Reduce inflation radius in `whole.launch:inflation_radius`
+- Ensure clear space around start/goal
+
+### Q: Robot doesn't stop at goal
+
+**Solution:**
+- Increase `goal_tolerance` in `whole.launch`
+- Check final waypoint visibility
+- Verify `/arrive` topic published
+
+## ROS2 (Hexapod)
+
+### Q: Training takes too long
+
+**Solution:**
+- Use GPU: Change `device = torch.device("cuda")` in `neupan/configuration/__init__.py` line 25
+- Reduce samples: Change `num_sample: 100000` → `50000` in training config
+- Reduce epochs: `epochs: 5000` → `2500`
+
+**Note:** Model quality may decrease with fewer samples/epochs.
+
+### Q: "Could not transform map to link_trunk"
+
+**Solution:**
+- Verify hexapod publishes TF: `ros2 run tf2_tools view_frames`
+- Check localization running (SLAM or pre-built map)
+- Ensure all frames connected
+
+### Q: No /scan topic
+
+**Solution:**
+Hexapod has Livox lidar (PointCloud2), need conversion:
+
+```bash
+# Install pointcloud_to_laserscan
+sudo apt install ros-humble-pointcloud-to-laserscan
+
+# Launch conversion node
+ros2 run pointcloud_to_laserscan pointcloud_to_laserscan_node \
+  --ros-args -r cloud_in:=/livox/lidar -r scan:=/scan
 ```
-If the problem persists, you can try the following methods:
-Navigate to `cd ros_ws/src/yolov5/utils`, open the `general.py` file, and locate the following code:
-``` python
-# Batched NMS
-c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
-boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
-i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
-```
-Modify the YOLO code:
-``` python
-# Batched NMS (using pure PyTorch to avoid torchvision.ops compatibility issues)
-c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
-boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
-# Pure PyTorch NMS implementation
-sorted_idx = torch.argsort(scores, descending=True)
-keep = []
-while len(sorted_idx) > 0:
-    current_idx = sorted_idx[0]
-    keep.append(current_idx)
-    if len(sorted_idx) == 1:
-        break
-    current_box = boxes[current_idx:current_idx+1]
-    rest_boxes = boxes[sorted_idx[1:]]
-    # Calculate IoU
-    inter_x1 = torch.max(current_box[:, 0], rest_boxes[:, 0])
-    inter_y1 = torch.max(current_box[:, 1], rest_boxes[:, 1])
-    inter_x2 = torch.min(current_box[:, 2], rest_boxes[:, 2])
-    inter_y2 = torch.min(current_box[:, 3], rest_boxes[:, 3])
-    inter_w = torch.clamp(inter_x2 - inter_x1, min=0)
-    inter_h = torch.clamp(inter_y2 - inter_y1, min=0)
-    inter_area = inter_w * inter_h
-    current_area = (current_box[:, 2] - current_box[:, 0]) * (current_box[:, 3] - current_box[:, 1])
-    rest_area = (rest_boxes[:, 2] - rest_boxes[:, 0]) * (rest_boxes[:, 3] - rest_boxes[:, 1])
-    union_area = current_area + rest_area - inter_area
-    iou = inter_area / union_area
-    sorted_idx = sorted_idx[1:][iou < iou_thres]
-i = torch.tensor(keep, dtype=torch.long, device=boxes.device)
-``` 
- 
-## libgomp problem
-Error: `libgomp` not found or similar problem
 
-Cause: Missing installation or corrupted library files.
+Or use custom bridge from `HEXAPOD_TO_NEUPAN_INTEGRATION.md`.
 
-Fix:
-``` shell
+### Q: ROS2 migration incomplete
+
+**Current status:** 30% complete
+
+**Completed:**
+- ✅ Workspace structure
+- ✅ NeuPAN ROS2 node (main functionality)
+- ✅ Package configuration
+- ✅ Launch files
+
+**TODO:**
+- ⏳ Visualization markers
+- ⏳ YOLO ROS2 port
+- ⏳ Navigation planner ROS2
+- ⏳ Full integration testing
+
+See: `ros2_ws/MIGRATION_STATUS.md` for detailed progress.
+
+## Troubleshooting
+
+### libgomp Problem (ROS1)
+
+**Error:** `libgomp` not found
+
+**Solution:**
+
+```bash
 for f in ~/venvs/ros_yolo_py38/lib/python3.8/site-packages/torch.libs/libgomp*.so*; do
     [ -f "$f" ] && mv "$f" "$f.bak"
 done
 ```
 
+### torch/torchvision Conflict (ROS1)
+
+**Error:** `torch.cuda.is_available() returns False`
+
+**Cause:** torchvision overwrote CUDA-enabled PyTorch
+
+**Solution:**
+
+```bash
+pip uninstall torch torchvision torchaudio
+pip install torch-*.whl  # Reinstall from .whl
+pip install --no-cache-dir "git+https://github.com/pytorch/vision.git@v0.16.0"
+```
+
+Or modify `yolov5/utils/general.py` to use pure PyTorch NMS (see original README).
+
+---
+
 # Acknowledgements
 
-Thanks to the excellent work by [ROS Navigation](https://github.com/ros-planning/navigation), [NeuPAN](https://github.com/hanruihua/NeuPAN), [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) and [Qwen](https://github.com/QwenLM/Qwen3-VL).
+This project builds on excellent open-source work:
 
-Special thanks to [hanruihua](https://github.com/hanruihua), [KevinLADLee](https://github.com/KevinLADLee) and [bearswang](https://github.com/bearswang) for their technical support.
+- **[ROS Navigation](https://github.com/ros-planning/navigation)** - Nav1 framework
+- **[NeuPAN](https://github.com/hanruihua/NeuPAN)** - Neural planner ([Paper](https://ieeexplore.ieee.org/document/10938329/))
+- **[YOLOv5](https://github.com/ultralytics/ultralytics)** - Object detection
+- **[Qwen](https://github.com/QwenLM/Qwen3-VL)** - Vision-language model
+- **Unitree Robotics** - Go2 SDK
+- **Dobot** - Mini Hex V2 hexapod platform
 
+---
+
+# Citation
+
+If you use this work in your research, please cite:
+
+```bibtex
+@article{neupan2025,
+  title={NeuPAN: Neural Parallel Autonomy Navigation},
+  author={Han, Ruihua and Mo, Hongle and others},
+  journal={IEEE Transactions on Robotics},
+  year={2025},
+  doi={10.1109/TRO.2025.10938329}
+}
+```
+
+---
+
+# License
+
+This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+# Contact
+
+- **Issues:** [GitHub Issues](https://github.com/ManifoldTechLtd/Odin-Nav-Stack/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/ManifoldTechLtd/Odin-Nav-Stack/discussions)
+- **Website:** [Odin Navigation Stack Webpage](https://ManifoldTechLtd.github.io/Odin-Nav-Stack-Webpage)
+
+---
+
+**Last Updated:** April 1, 2026  
+**Version:** 2.0 (Multi-platform support)
