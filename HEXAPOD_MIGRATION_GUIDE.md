@@ -586,3 +586,7 @@ ros2 topic echo /robot_state
 **Version:** 2.0  
 **Last Updated:** 2026-03-26  
 **Repository:** https://github.com/tcy1998/Odin-Nav-Stack-sixlegs
+
+
+sudo docker exec -it b59f821da9e4 bash
+/home/ai/Odin-Nav-Stack-sixlegs/NeuPAN# python3 example/dune_train/dune_train_diff.py --config example/dune_train/dune_train_hexapod.yaml
